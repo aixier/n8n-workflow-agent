@@ -1,0 +1,97 @@
+{
+  "name": "Template Workflow",
+  "description": "Workflow configuration template",
+  "version": "1.0.0",
+  "metadata": {
+    "created_by": "n8n Workflow Agent",
+    "created_at": "{{timestamp}}",
+    "category": "template",
+    "tags": ["template", "example"]
+  },
+  "nodes": [
+    {
+      "id": "trigger_1",
+      "name": "Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "parameters": {
+        "path": "/webhook/{{workflow_id}}",
+        "method": "POST",
+        "responseMode": "responseNode",
+        "options": {
+          "responseContentType": "application/json",
+          "responsePropertyName": "data",
+          "responseHeaders": {}
+        }
+      },
+      "credentials": {},
+      "disabled": false,
+      "notes": "Entry point for the workflow"
+    },
+    {
+      "id": "process_1",
+      "name": "Process Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [450, 300],
+      "parameters": {
+        "jsCode": "// Process incoming data\nconst items = $input.all();\n\n// Your processing logic here\nconst processedItems = items.map(item => ({\n  json: {\n    ...item.json,\n    processed: true,\n    timestamp: new Date().toISOString()\n  }\n}));\n\nreturn processedItems;"
+      }
+    },
+    {
+      "id": "respond_1",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [650, 300],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"success\": true, \"data\": $json, \"timestamp\": \"{{timestamp}}\" } }}",
+        "options": {
+          "responseCode": 200
+        }
+      }
+    }
+  ],
+  "connections": {
+    "trigger_1": {
+      "main": [
+        [
+          {
+            "node": "process_1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "process_1": {
+      "main": [
+        [
+          {
+            "node": "respond_1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "saveExecutionProgress": true,
+    "saveDataSuccessExecution": "all",
+    "saveDataErrorExecution": "all",
+    "errorWorkflow": "",
+    "timezone": "Asia/Shanghai",
+    "executionTimeout": 300,
+    "maxExecutionTimeout": 3600,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "active": false
+}

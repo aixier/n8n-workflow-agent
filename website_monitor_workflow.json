@@ -1,0 +1,192 @@
+{
+  "name": "Website Monitor - Every 30 Minutes",
+  "description": "Monitors website status every 30 minutes and sends email notification if site is down or returns error",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 30
+            }
+          ]
+        }
+      },
+      "id": "schedule_trigger",
+      "name": "Every 30 Minutes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://example.com",
+        "options": {
+          "timeout": 10000,
+          "retry": {
+            "maxTries": 3,
+            "waitBetweenTries": 3000
+          },
+          "response": {
+            "response": {
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "id": "http_request",
+      "name": "Check Website",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [450, 300],
+      "alwaysOutputData": true,
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "c6e8f8e7-9abc-4def-89ab-cdef01234567",
+              "leftValue": "={{ $json.statusCode }}",
+              "rightValue": 200,
+              "operator": {
+                "type": "number",
+                "operation": "notEquals"
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "id": "if_error",
+      "name": "Check Status",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "fromEmail": "monitor@example.com",
+        "toEmail": "admin@example.com",
+        "subject": "⚠️ Website Alert: {{ $node['http_request'].json.url }} is DOWN",
+        "emailType": "html",
+        "htmlBody": "<!DOCTYPE html>\n<html>\n<head>\n  <style>\n    body { font-family: Arial, sans-serif; }\n    .alert { background: #f8d7da; color: #721c24; padding: 20px; border-radius: 5px; }\n    .details { margin-top: 20px; background: #f5f5f5; padding: 15px; border-radius: 5px; }\n    .status { font-size: 24px; font-weight: bold; color: #dc3545; }\n  </style>\n</head>\n<body>\n  <div class=\"alert\">\n    <h2>🚨 Website Monitoring Alert</h2>\n    <div class=\"status\">WEBSITE DOWN</div>\n  </div>\n  \n  <div class=\"details\">\n    <h3>Details:</h3>\n    <ul>\n      <li><strong>URL:</strong> {{ $node['http_request'].json.url }}</li>\n      <li><strong>Status Code:</strong> {{ $node['http_request'].json.statusCode || 'No Response' }}</li>\n      <li><strong>Error:</strong> {{ $node['http_request'].json.error?.message || 'Connection timeout or server error' }}</li>\n      <li><strong>Checked At:</strong> {{ new Date().toLocaleString() }}</li>\n      <li><strong>Response Time:</strong> {{ $node['http_request'].json.timings?.total || 'N/A' }}ms</li>\n    </ul>\n  </div>\n  \n  <p style=\"margin-top: 20px; color: #666;\">\n    This is an automated alert from your n8n Website Monitoring Workflow.<br>\n    The website failed to respond with status 200 or timed out.\n  </p>\n</body>\n</html>",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "id": "send_alert",
+      "name": "Send Alert Email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [850, 250],
+      "credentials": {
+        "smtp": {
+          "id": "smtp_credentials",
+          "name": "SMTP"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "status",
+              "value": "OK"
+            },
+            {
+              "name": "message",
+              "value": "Website is running normally"
+            },
+            {
+              "name": "checked_at",
+              "value": "={{ new Date().toISOString() }}"
+            },
+            {
+              "name": "url",
+              "value": "={{ $node['http_request'].json.url }}"
+            },
+            {
+              "name": "response_time",
+              "value": "={{ $node['http_request'].json.timings?.total }}ms"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "log_success",
+      "name": "Log Success",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.2,
+      "position": [850, 450]
+    }
+  ],
+  "connections": {
+    "schedule_trigger": {
+      "main": [
+        [
+          {
+            "node": "http_request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "http_request": {
+      "main": [
+        [
+          {
+            "node": "if_error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "if_error": {
+      "main": [
+        [
+          {
+            "node": "send_alert",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "log_success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "saveExecutionProgress": true,
+    "saveDataSuccessExecution": "all",
+    "saveDataErrorExecution": "all",
+    "errorWorkflow": "",
+    "timezone": "Asia/Shanghai",
+    "executionTimeout": 300,
+    "maxExecutionTimeout": 3600,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "active": false
+}

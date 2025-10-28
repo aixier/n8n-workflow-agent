@@ -1,0 +1,193 @@
+# n8n Workflow Agent Configuration
+version: 1.0.0
+
+agent:
+  name: n8n Workflow Intelligence Agent
+  mode: ${AGENT_MODE:development}
+  debug: ${ENABLE_DEBUG:false}
+
+n8n:
+  base_url: ${N8N_BASE_URL:http://localhost:5678}
+  api_key: ${N8N_API_KEY}
+  timeout: 30000
+  retry:
+    enabled: true
+    max_attempts: 3
+    delay: 1000
+    backoff: exponential
+
+analysis:
+  modules:
+    - requirements
+    - nodes
+    - dataflow
+    - testing
+
+  requirements:
+    enabled: true
+    auto_detect: true
+    validation: strict
+
+  nodes:
+    enabled: true
+    optimize: true
+    validate_connections: true
+
+  dataflow:
+    enabled: true
+    track_data_types: true
+    validate_transformations: true
+
+  testing:
+    enabled: true
+    auto_generate: true
+    coverage_threshold: 80
+
+workflow:
+  defaults:
+    execution_order: v1
+    save_manual_executions: true
+    save_execution_progress: true
+    timezone: Asia/Shanghai
+    timeout: 300
+    max_timeout: 3600
+
+  optimization:
+    enable_batching: true
+    batch_size: ${BATCH_SIZE:100}
+    enable_parallel: true
+    max_parallel: 5
+    enable_caching: ${ENABLE_CACHE:true}
+    cache_ttl: 3600
+
+testing:
+  environment: ${TEST_ENVIRONMENT:development}
+  parallel: ${TEST_PARALLEL:false}
+  timeout: ${TEST_TIMEOUT:30000}
+  retry_count: ${TEST_RETRY_COUNT:3}
+
+  scenarios:
+    functional:
+      enabled: true
+      priority: high
+
+    performance:
+      enabled: true
+      priority: medium
+      thresholds:
+        response_time: 2000
+        throughput: 100
+        error_rate: 0.01
+
+    security:
+      enabled: false
+      priority: high
+
+    edge_cases:
+      enabled: true
+      priority: low
+
+logging:
+  level: ${LOG_LEVEL:info}
+  file: ${LOG_FILE:./logs/agent.log}
+  console: true
+  format: json
+  rotation:
+    enabled: true
+    max_size: ${LOG_MAX_SIZE:10M}
+    max_files: ${LOG_MAX_FILES:5}
+
+storage:
+  data_path: ${DATA_PATH:./data}
+  backup_path: ${BACKUP_PATH:./backups}
+  temp_path: ${TEMP_PATH:/tmp/n8n-agent}
+
+  backup:
+    enabled: ${AGENT_AUTO_BACKUP:true}
+    interval: daily
+    keep_days: 30
+    compress: true
+
+security:
+  enable_auth: ${ENABLE_AUTH:false}
+  auth_token: ${AUTH_TOKEN}
+  allowed_origins: ${ALLOWED_ORIGINS:*}
+  rate_limit:
+    enabled: true
+    max_requests: ${RATE_LIMIT:100}
+    window: 60000
+
+  encryption:
+    enabled: false
+    algorithm: aes-256-gcm
+
+monitoring:
+  enabled: ${ENABLE_ANALYTICS:false}
+  health_check:
+    enabled: true
+    interval: ${AGENT_HEALTH_CHECK_INTERVAL:60000}
+    endpoint: /health
+
+  metrics:
+    collect: true
+    export: false
+    retention: 7d
+
+notifications:
+  enabled: ${NOTIFICATION_ENABLED:false}
+  channels:
+    webhook:
+      enabled: false
+      url: ${NOTIFICATION_WEBHOOK}
+
+    slack:
+      enabled: false
+      webhook: ${SLACK_WEBHOOK}
+
+    email:
+      enabled: false
+      smtp_host: ${EMAIL_SMTP_HOST}
+      smtp_port: ${EMAIL_SMTP_PORT}
+      from: ${EMAIL_FROM}
+
+  events:
+    - workflow_created
+    - workflow_failed
+    - test_failed
+    - optimization_complete
+
+templates:
+  directory: ./templates
+  auto_load: true
+  validation: strict
+
+  categories:
+    - basic
+    - data_processing
+    - integration
+    - automation
+    - ai_powered
+
+integrations:
+  github:
+    enabled: false
+    auto_sync: false
+    branch: main
+
+  docker:
+    enabled: false
+    registry: localhost:5000
+
+  kubernetes:
+    enabled: false
+    namespace: n8n
+
+advanced:
+  auto_optimize: ${AGENT_AUTO_OPTIMIZE:false}
+  max_concurrent: ${MAX_CONCURRENT_WORKFLOWS:5}
+  execution_timeout: ${WORKFLOW_EXECUTION_TIMEOUT:300}
+
+  experimental:
+    ai_suggestions: false
+    auto_repair: false
+    predictive_analysis: false

@@ -1,0 +1,326 @@
+{
+  "test_suite": {
+    "name": "Workflow Test Suite Template",
+    "version": "1.0.0",
+    "description": "Template for workflow testing scenarios",
+    "environment": "development",
+    "base_url": "http://localhost:5678",
+    "default_timeout": 30,
+    "parallel_execution": false
+  },
+  "test_cases": [
+    {
+      "id": "TC_001",
+      "name": "Basic Webhook Test",
+      "description": "Test webhook trigger and response",
+      "category": "functional",
+      "priority": "high",
+      "enabled": true,
+      "preconditions": [
+        "Workflow is active",
+        "Webhook endpoint is accessible"
+      ],
+      "input": {
+        "method": "POST",
+        "endpoint": "/webhook/test",
+        "headers": {
+          "Content-Type": "application/json",
+          "X-Test-Header": "test-value"
+        },
+        "body": {
+          "test_data": "sample",
+          "timestamp": "{{current_timestamp}}",
+          "request_id": "{{uuid}}"
+        }
+      },
+      "expected": {
+        "status": 200,
+        "response": {
+          "success": true,
+          "data": {
+            "_type": "object"
+          }
+        },
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "response_time_max": 5000
+      },
+      "validation": {
+        "type": "schema",
+        "schema": {
+          "type": "object",
+          "required": ["success", "data"],
+          "properties": {
+            "success": {
+              "type": "boolean"
+            },
+            "data": {
+              "type": "object"
+            }
+          }
+        }
+      },
+      "timeout": 10,
+      "retry": {
+        "enabled": true,
+        "max_attempts": 3,
+        "delay": 1000
+      }
+    },
+    {
+      "id": "TC_002",
+      "name": "Error Handling Test",
+      "description": "Test error handling and response",
+      "category": "error_handling",
+      "priority": "high",
+      "enabled": true,
+      "input": {
+        "method": "POST",
+        "endpoint": "/webhook/test",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "trigger_error": true,
+          "error_type": "validation"
+        }
+      },
+      "expected": {
+        "status": 400,
+        "response": {
+          "success": false,
+          "error": {
+            "_type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "TC_003",
+      "name": "Performance Test",
+      "description": "Test workflow performance under load",
+      "category": "performance",
+      "priority": "medium",
+      "enabled": true,
+      "type": "load",
+      "load_config": {
+        "concurrent_requests": 10,
+        "duration": 60,
+        "ramp_up": 10
+      },
+      "input": {
+        "method": "POST",
+        "endpoint": "/webhook/test",
+        "body": {
+          "test_id": "{{iteration}}",
+          "timestamp": "{{current_timestamp}}"
+        }
+      },
+      "expected": {
+        "status": 200,
+        "average_response_time": 2000,
+        "p95_response_time": 5000,
+        "error_rate": 0.01
+      }
+    },
+    {
+      "id": "TC_004",
+      "name": "Data Validation Test",
+      "description": "Test data validation and transformation",
+      "category": "functional",
+      "priority": "high",
+      "enabled": true,
+      "input": {
+        "method": "POST",
+        "endpoint": "/webhook/test",
+        "body": {
+          "email": "test@example.com",
+          "age": 25,
+          "active": true,
+          "tags": ["test", "validation"]
+        }
+      },
+      "expected": {
+        "status": 200,
+        "response": {
+          "data": {
+            "email": "test@example.com",
+            "age": {
+              "_type": "number",
+              "min": 0,
+              "max": 150
+            },
+            "active": true,
+            "tags": {
+              "_type": "array",
+              "min_length": 1
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "TC_005",
+      "name": "Edge Case - Empty Request",
+      "description": "Test handling of empty request",
+      "category": "edge_case",
+      "priority": "low",
+      "enabled": true,
+      "input": {
+        "method": "POST",
+        "endpoint": "/webhook/test",
+        "body": {}
+      },
+      "expected": {
+        "status": [200, 400],
+        "response": {
+          "_type": "object"
+        }
+      }
+    },
+    {
+      "id": "TC_006",
+      "name": "Edge Case - Large Payload",
+      "description": "Test handling of large payload",
+      "category": "edge_case",
+      "priority": "medium",
+      "enabled": true,
+      "input": {
+        "method": "POST",
+        "endpoint": "/webhook/test",
+        "body": {
+          "large_array": "{{generate_array(1000)}}",
+          "large_text": "{{generate_text(10000)}}"
+        }
+      },
+      "expected": {
+        "status": 200,
+        "response_time_max": 10000
+      }
+    },
+    {
+      "id": "TC_007",
+      "name": "Security - SQL Injection Test",
+      "description": "Test SQL injection prevention",
+      "category": "security",
+      "priority": "high",
+      "enabled": false,
+      "input": {
+        "method": "POST",
+        "endpoint": "/webhook/test",
+        "body": {
+          "user_input": "'; DROP TABLE users; --",
+          "search": "1 OR 1=1"
+        }
+      },
+      "expected": {
+        "status": 200,
+        "response": {
+          "success": true
+        }
+      },
+      "validation": {
+        "type": "custom",
+        "script": "// Verify no SQL was executed\nreturn !response.body.includes('error');"
+      }
+    },
+    {
+      "id": "TC_008",
+      "name": "Integration Test - End to End",
+      "description": "Test complete workflow execution",
+      "category": "integration",
+      "priority": "high",
+      "enabled": true,
+      "steps": [
+        {
+          "name": "Create Item",
+          "request": {
+            "method": "POST",
+            "endpoint": "/webhook/create",
+            "body": {
+              "name": "Test Item",
+              "value": 100
+            }
+          },
+          "expected": {
+            "status": 201,
+            "response": {
+              "id": {
+                "_type": "string"
+              }
+            }
+          },
+          "extract": {
+            "item_id": "response.body.id"
+          }
+        },
+        {
+          "name": "Get Item",
+          "request": {
+            "method": "GET",
+            "endpoint": "/webhook/get/{{item_id}}"
+          },
+          "expected": {
+            "status": 200,
+            "response": {
+              "id": "{{item_id}}",
+              "name": "Test Item"
+            }
+          }
+        },
+        {
+          "name": "Delete Item",
+          "request": {
+            "method": "DELETE",
+            "endpoint": "/webhook/delete/{{item_id}}"
+          },
+          "expected": {
+            "status": 204
+          }
+        }
+      ]
+    }
+  ],
+  "test_data": {
+    "variables": {
+      "base_url": "http://localhost:5678",
+      "api_key": "{{env.N8N_API_KEY}}",
+      "test_user": {
+        "email": "test@example.com",
+        "name": "Test User"
+      }
+    },
+    "generators": {
+      "uuid": "function() { return crypto.randomUUID(); }",
+      "current_timestamp": "function() { return new Date().toISOString(); }",
+      "generate_array": "function(size) { return Array(size).fill(0).map((_, i) => i); }",
+      "generate_text": "function(length) { return 'x'.repeat(length); }"
+    },
+    "fixtures": {
+      "valid_email": ["test@example.com", "user@domain.org"],
+      "invalid_email": ["notanemail", "@example.com", "test@"],
+      "sample_data": {
+        "users": [
+          {
+            "id": 1,
+            "name": "Alice",
+            "email": "alice@example.com"
+          },
+          {
+            "id": 2,
+            "name": "Bob",
+            "email": "bob@example.com"
+          }
+        ]
+      }
+    }
+  },
+  "reporting": {
+    "format": "html",
+    "include_details": true,
+    "screenshot_on_failure": false,
+    "log_level": "info",
+    "output_directory": "./test-results"
+  }
+}

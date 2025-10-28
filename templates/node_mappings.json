@@ -1,0 +1,299 @@
+{
+  "triggers": {
+    "webhook": {
+      "type": "n8n-nodes-base.webhook",
+      "displayName": "Webhook Trigger",
+      "description": "Receives HTTP requests",
+      "required_params": ["path", "method"],
+      "optional_params": ["responseMode", "options"],
+      "default_config": {
+        "path": "/webhook",
+        "method": "POST",
+        "responseMode": "responseNode"
+      }
+    },
+    "schedule": {
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "displayName": "Schedule Trigger",
+      "description": "Triggers workflow on schedule",
+      "required_params": ["rule"],
+      "optional_params": ["timezone"],
+      "default_config": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 1
+            }
+          ]
+        }
+      }
+    },
+    "form": {
+      "type": "n8n-nodes-base.formTrigger",
+      "displayName": "Form Trigger",
+      "description": "Creates web form for input",
+      "required_params": ["formFields"],
+      "optional_params": ["formTitle", "formDescription"],
+      "default_config": {
+        "formTitle": "Input Form",
+        "formDescription": "Please fill out this form",
+        "formFields": {
+          "values": []
+        }
+      }
+    },
+    "email": {
+      "type": "n8n-nodes-base.emailTriggerImap",
+      "displayName": "Email Trigger",
+      "description": "Triggers on new email",
+      "required_params": ["mailbox"],
+      "optional_params": ["pollInterval", "simple"],
+      "default_config": {
+        "mailbox": "INBOX",
+        "pollInterval": 1,
+        "simple": true
+      }
+    }
+  },
+  "actions": {
+    "http": {
+      "type": "n8n-nodes-base.httpRequest",
+      "displayName": "HTTP Request",
+      "description": "Makes HTTP requests",
+      "required_params": ["method", "url"],
+      "optional_params": ["authentication", "sendHeaders", "sendBody"],
+      "default_config": {
+        "method": "GET",
+        "url": "",
+        "authentication": "none",
+        "options": {}
+      }
+    },
+    "database": {
+      "postgres": {
+        "type": "n8n-nodes-base.postgres",
+        "displayName": "PostgreSQL",
+        "description": "PostgreSQL database operations",
+        "required_params": ["operation"],
+        "optional_params": ["query", "table", "columns"],
+        "default_config": {
+          "operation": "executeQuery"
+        }
+      },
+      "mysql": {
+        "type": "n8n-nodes-base.mySql",
+        "displayName": "MySQL",
+        "description": "MySQL database operations",
+        "required_params": ["operation"],
+        "optional_params": ["query", "table", "columns"],
+        "default_config": {
+          "operation": "executeQuery"
+        }
+      },
+      "mongodb": {
+        "type": "n8n-nodes-base.mongoDb",
+        "displayName": "MongoDB",
+        "description": "MongoDB operations",
+        "required_params": ["operation", "collection"],
+        "optional_params": ["query", "fields"],
+        "default_config": {
+          "operation": "find",
+          "collection": ""
+        }
+      }
+    },
+    "email": {
+      "type": "n8n-nodes-base.emailSend",
+      "displayName": "Send Email",
+      "description": "Sends email messages",
+      "required_params": ["toEmail", "subject"],
+      "optional_params": ["fromEmail", "emailType", "htmlBody", "attachments"],
+      "default_config": {
+        "emailType": "html",
+        "subject": "",
+        "htmlBody": ""
+      }
+    },
+    "code": {
+      "type": "n8n-nodes-base.code",
+      "displayName": "Code",
+      "description": "Execute JavaScript code",
+      "required_params": ["jsCode"],
+      "optional_params": [],
+      "default_config": {
+        "jsCode": "const items = $input.all();\nreturn items;"
+      }
+    }
+  },
+  "transforms": {
+    "set": {
+      "type": "n8n-nodes-base.set",
+      "displayName": "Set",
+      "description": "Sets values on items",
+      "required_params": ["values"],
+      "optional_params": ["options"],
+      "default_config": {
+        "values": {
+          "string": [],
+          "number": [],
+          "boolean": []
+        },
+        "options": {}
+      }
+    },
+    "filter": {
+      "type": "n8n-nodes-base.filter",
+      "displayName": "Filter",
+      "description": "Filters items",
+      "required_params": ["conditions"],
+      "optional_params": ["combineConditions"],
+      "default_config": {
+        "conditions": {
+          "string": [],
+          "number": [],
+          "boolean": []
+        },
+        "combineConditions": "all"
+      }
+    },
+    "merge": {
+      "type": "n8n-nodes-base.merge",
+      "displayName": "Merge",
+      "description": "Merges data streams",
+      "required_params": ["mode"],
+      "optional_params": ["joinMode", "propertyName"],
+      "default_config": {
+        "mode": "append"
+      }
+    },
+    "split_batch": {
+      "type": "n8n-nodes-base.splitInBatches",
+      "displayName": "Split In Batches",
+      "description": "Splits items into batches",
+      "required_params": ["batchSize"],
+      "optional_params": ["options"],
+      "default_config": {
+        "batchSize": 10,
+        "options": {}
+      }
+    }
+  },
+  "control_flow": {
+    "if": {
+      "type": "n8n-nodes-base.if",
+      "displayName": "IF",
+      "description": "Conditional branching",
+      "required_params": ["conditions"],
+      "optional_params": ["combineConditions"],
+      "default_config": {
+        "conditions": {
+          "string": [],
+          "number": [],
+          "boolean": []
+        },
+        "combineConditions": "all"
+      }
+    },
+    "switch": {
+      "type": "n8n-nodes-base.switch",
+      "displayName": "Switch",
+      "description": "Multiple conditional branches",
+      "required_params": ["mode", "rules"],
+      "optional_params": ["fallbackOutput"],
+      "default_config": {
+        "mode": "expression",
+        "rules": {
+          "values": []
+        },
+        "fallbackOutput": "none"
+      }
+    },
+    "loop": {
+      "type": "n8n-nodes-base.loopOverItems",
+      "displayName": "Loop Over Items",
+      "description": "Loops over items",
+      "required_params": [],
+      "optional_params": ["options"],
+      "default_config": {
+        "options": {}
+      }
+    },
+    "wait": {
+      "type": "n8n-nodes-base.wait",
+      "displayName": "Wait",
+      "description": "Waits for specified time",
+      "required_params": ["amount", "unit"],
+      "optional_params": [],
+      "default_config": {
+        "amount": 1,
+        "unit": "seconds"
+      }
+    }
+  },
+  "integrations": {
+    "slack": {
+      "type": "n8n-nodes-base.slack",
+      "displayName": "Slack",
+      "description": "Slack messaging",
+      "required_params": ["resource", "operation"],
+      "optional_params": ["channel", "text", "blocks"],
+      "default_config": {
+        "resource": "message",
+        "operation": "post"
+      }
+    },
+    "github": {
+      "type": "n8n-nodes-base.github",
+      "displayName": "GitHub",
+      "description": "GitHub operations",
+      "required_params": ["resource", "operation"],
+      "optional_params": ["owner", "repository"],
+      "default_config": {
+        "resource": "issue",
+        "operation": "get"
+      }
+    },
+    "google_sheets": {
+      "type": "n8n-nodes-base.googleSheets",
+      "displayName": "Google Sheets",
+      "description": "Google Sheets operations",
+      "required_params": ["operation"],
+      "optional_params": ["sheetId", "range"],
+      "default_config": {
+        "operation": "read"
+      }
+    }
+  },
+  "utilities": {
+    "respond_webhook": {
+      "type": "n8n-nodes-base.respondToWebhook",
+      "displayName": "Respond to Webhook",
+      "description": "Sends response to webhook",
+      "required_params": ["respondWith"],
+      "optional_params": ["responseBody", "responseCode"],
+      "default_config": {
+        "respondWith": "json",
+        "responseCode": 200
+      }
+    },
+    "stop_error": {
+      "type": "n8n-nodes-base.stopAndError",
+      "displayName": "Stop and Error",
+      "description": "Stops execution with error",
+      "required_params": ["errorMessage"],
+      "optional_params": [],
+      "default_config": {
+        "errorMessage": "An error occurred"
+      }
+    },
+    "no_op": {
+      "type": "n8n-nodes-base.noOp",
+      "displayName": "No Operation",
+      "description": "Does nothing (placeholder)",
+      "required_params": [],
+      "optional_params": [],
+      "default_config": {}
+    }
+  }
+}

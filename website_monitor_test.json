@@ -1,0 +1,134 @@
+{
+  "name": "Website Monitor Workflow Tests",
+  "workflow_file": "website_monitor_workflow.json",
+  "test_cases": [
+    {
+      "id": "TEST_001",
+      "name": "Test Website Up",
+      "description": "Verify workflow handles successful website response",
+      "type": "happy_path",
+      "mock_data": {
+        "http_request": {
+          "statusCode": 200,
+          "url": "https://example.com",
+          "timings": {
+            "total": 245
+          },
+          "body": "OK"
+        }
+      },
+      "expected": {
+        "branch": "success",
+        "node_executed": "log_success",
+        "email_sent": false,
+        "log_contains": {
+          "status": "OK",
+          "message": "Website is running normally"
+        }
+      }
+    },
+    {
+      "id": "TEST_002",
+      "name": "Test Website Down",
+      "description": "Verify workflow sends alert when website is down",
+      "type": "error_case",
+      "mock_data": {
+        "http_request": {
+          "statusCode": 503,
+          "url": "https://example.com",
+          "error": {
+            "message": "Service Unavailable"
+          }
+        }
+      },
+      "expected": {
+        "branch": "error",
+        "node_executed": "send_alert",
+        "email_sent": true,
+        "email_subject_contains": "Website Alert",
+        "email_body_contains": ["WEBSITE DOWN", "503", "Service Unavailable"]
+      }
+    },
+    {
+      "id": "TEST_003",
+      "name": "Test Connection Timeout",
+      "description": "Verify workflow handles connection timeout",
+      "type": "error_case",
+      "mock_data": {
+        "http_request": {
+          "statusCode": null,
+          "url": "https://example.com",
+          "error": {
+            "message": "ETIMEDOUT: Connection timeout",
+            "code": "ETIMEDOUT"
+          }
+        }
+      },
+      "expected": {
+        "branch": "error",
+        "node_executed": "send_alert",
+        "email_sent": true,
+        "email_subject_contains": "Website Alert",
+        "email_body_contains": ["Connection timeout"]
+      }
+    },
+    {
+      "id": "TEST_004",
+      "name": "Test 404 Error",
+      "description": "Verify workflow handles 404 Not Found",
+      "type": "error_case",
+      "mock_data": {
+        "http_request": {
+          "statusCode": 404,
+          "url": "https://example.com/missing-page",
+          "error": {
+            "message": "Not Found"
+          }
+        }
+      },
+      "expected": {
+        "branch": "error",
+        "node_executed": "send_alert",
+        "email_sent": true
+      }
+    },
+    {
+      "id": "TEST_005",
+      "name": "Test Multiple Retries",
+      "description": "Verify retry mechanism works",
+      "type": "reliability",
+      "mock_sequence": [
+        {
+          "attempt": 1,
+          "statusCode": null,
+          "error": "Connection failed"
+        },
+        {
+          "attempt": 2,
+          "statusCode": null,
+          "error": "Connection failed"
+        },
+        {
+          "attempt": 3,
+          "statusCode": 200,
+          "body": "OK"
+        }
+      ],
+      "expected": {
+        "retries": 2,
+        "final_status": "success",
+        "branch": "success"
+      }
+    }
+  ],
+  "performance_tests": {
+    "response_time_threshold": 5000,
+    "memory_limit": "256MB",
+    "concurrent_executions": 5
+  },
+  "security_tests": {
+    "validate_credentials": true,
+    "check_ssl_certificate": true,
+    "test_authentication": true
+  }
+}
