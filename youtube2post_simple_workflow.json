@@ -1,0 +1,151 @@
+{
+  "name": "YouTube2Post Simple - Working Version",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "youtube2post-simple",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "webhook",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "status",
+              "value": "processing"
+            },
+            {
+              "name": "youtube_url",
+              "value": "={{$json.body.youtube_url}}"
+            },
+            {
+              "name": "language",
+              "value": "={{$json.body.language || 'zh-CN'}}"
+            },
+            {
+              "name": "timestamp",
+              "value": "={{$now.toISO()}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "set_data",
+      "name": "Set Data",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Validate YouTube URL and extract video ID\nconst url = $input.item.json.youtube_url;\n\nif (!url) {\n  throw new Error('YouTube URL is required');\n}\n\n// Support various YouTube URL formats\nconst patterns = [\n  /(?:youtube\\.com\\/watch\\?v=|youtu\\.be\\/|youtube\\.com\\/shorts\\/)([\\w-]{11})/,\n  /youtube\\.com\\/embed\\/([\\w-]{11})/,\n  /youtube\\.com\\/v\\/([\\w-]{11})/\n];\n\nlet videoId = null;\nfor (const pattern of patterns) {\n  const match = url.match(pattern);\n  if (match) {\n    videoId = match[1];\n    break;\n  }\n}\n\nif (!videoId) {\n  throw new Error('Invalid YouTube URL format');\n}\n\nreturn {\n  ...($input.item.json),\n  videoId: videoId,\n  videoUrl: `https://www.youtube.com/watch?v=${videoId}`,\n  valid: true\n};"
+      },
+      "id": "validate_url",
+      "name": "Validate URL",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Simulate processing (in production, this would call yt-dlp)\n// For now, create a mock response\n\nconst videoId = $input.item.json.videoId;\nconst language = $input.item.json.language;\n\n// Mock extracted quotes based on video\nconst mockQuotes = [\n  {\n    text: \"这是视频中的第一个重要观点\",\n    timestamp: \"00:00:15\",\n    start_seconds: 15\n  },\n  {\n    text: \"另一个关键的洞察和发现\",\n    timestamp: \"00:00:45\", \n    start_seconds: 45\n  },\n  {\n    text: \"总结性的精彩语句\",\n    timestamp: \"00:01:20\",\n    start_seconds: 80\n  }\n];\n\nreturn {\n  success: true,\n  videoId: videoId,\n  videoUrl: $input.item.json.videoUrl,\n  language: language,\n  processedAt: new Date().toISOString(),\n  metadata: {\n    title: \"Mock Video Title\",\n    channel: \"Mock Channel\",\n    duration: 120,\n    description: \"This is a mock description for testing\"\n  },\n  quotes: mockQuotes,\n  transcription: \"This is a mock transcription text...\",\n  message: `Successfully processed video ${videoId} (mock mode)`\n};"
+      },
+      "id": "process_video",
+      "name": "Process Video (Mock)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format the final response\nconst input = $input.item.json;\n\nreturn {\n  success: input.success,\n  data: {\n    videoId: input.videoId,\n    videoUrl: input.videoUrl,\n    metadata: input.metadata,\n    quotes: input.quotes,\n    transcription: input.transcription ? input.transcription.substring(0, 200) + '...' : null,\n    processedAt: input.processedAt\n  },\n  message: input.message,\n  usage: {\n    processingTime: '2.5s',\n    quotesExtracted: input.quotes.length,\n    language: input.language\n  }\n};"
+      },
+      "id": "format_response",
+      "name": "Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1050, 300]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "respond",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1250, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Set Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Data": {
+      "main": [
+        [
+          {
+            "node": "Validate URL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate URL": {
+      "main": [
+        [
+          {
+            "node": "Process Video (Mock)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Video (Mock)": {
+      "main": [
+        [
+          {
+            "node": "Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Response": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "saveDataSuccessExecution": "all",
+    "saveExecutionProgress": true,
+    "saveManualExecutions": true
+  },
+  "active": false
+}

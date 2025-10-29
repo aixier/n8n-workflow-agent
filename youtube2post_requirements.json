@@ -1,0 +1,252 @@
+{
+  "meta": {
+    "version": "1.0.0",
+    "created_at": "2025-01-29T10:00:00Z",
+    "analyst": "n8n Workflow Intelligence Agent",
+    "confidence": 0.95
+  },
+  "requirement": {
+    "id": "REQ_YT2P_001",
+    "title": "YouTube视频转图文内容",
+    "description": "自动下载YouTube视频，提取音频转写，使用AI提取金句，生成截图，最终输出结构化的图文内容",
+    "category": "内容处理",
+    "priority": "high"
+  },
+  "workflow": {
+    "name": "youtube2post_automation",
+    "description": "YouTube video to structured post content automation",
+    "trigger": {
+      "type": "webhook",
+      "config": {
+        "method": "POST",
+        "path": "/youtube2post",
+        "authentication": "headerAuth"
+      }
+    },
+    "process": {
+      "steps": [
+        "接收YouTube URL",
+        "创建任务记录",
+        "下载视频文件",
+        "提取音频流",
+        "上传至OSS",
+        "音频转写(SenseVoice/Qwen)",
+        "AI提取金句(3-5条)",
+        "根据时间戳截图",
+        "上传截图至OSS",
+        "生成结构化内容",
+        "应用模板输出",
+        "更新任务状态"
+      ],
+      "conditions": [
+        "URL必须是有效的YouTube链接",
+        "视频长度不超过30分钟",
+        "支持语言: zh-CN, en, ja, ko",
+        "每个金句配1-2张截图"
+      ],
+      "error_handling": {
+        "retry_times": 3,
+        "retry_delay": 5000,
+        "fallback": "标记任务失败并记录错误",
+        "notification": "发送错误通知到管理员"
+      }
+    },
+    "data": {
+      "input": {
+        "youtube_url": "string",
+        "language": "string (default: zh-CN)",
+        "quote_count": "number (3-5)",
+        "template_id": "string (optional)"
+      },
+      "intermediate": {
+        "video_file": "binary (mp4)",
+        "audio_file": "binary (wav)",
+        "transcription": "json with timestamps",
+        "quotes": "array of {text, timestamp, start_seconds}",
+        "screenshots": "array of binary (jpg)"
+      },
+      "output": {
+        "task_id": "string",
+        "status": "completed|failed",
+        "video_metadata": {
+          "title": "string",
+          "author": "string",
+          "duration": "number",
+          "thumbnail": "string (url)"
+        },
+        "quotes": [
+          {
+            "text": "string",
+            "timestamp": "string (00:00:00)",
+            "image_url": "string (oss url)"
+          }
+        ],
+        "generated_content": {
+          "html": "string",
+          "markdown": "string",
+          "json": "object"
+        },
+        "oss_urls": {
+          "video": "string",
+          "audio": "string",
+          "screenshots": "array"
+        }
+      }
+    },
+    "integration": {
+      "systems": [
+        "YouTube (via yt-dlp)",
+        "Aliyun OSS",
+        "Qwen AI (DashScope)",
+        "FFmpeg"
+      ],
+      "apis": [
+        {
+          "name": "DashScope API",
+          "endpoint": "https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation",
+          "authentication": "Bearer token"
+        },
+        {
+          "name": "OSS Upload API",
+          "endpoint": "https://oss.aliyuncs.com/upload",
+          "authentication": "Access Key"
+        }
+      ],
+      "tools": [
+        "yt-dlp (video download)",
+        "ffmpeg (audio extraction & screenshot)",
+        "python (processing scripts)"
+      ],
+      "credentials": [
+        "DASHSCOPE_API_KEY",
+        "OSS_ACCESS_KEY",
+        "OSS_SECRET_KEY"
+      ]
+    }
+  },
+  "performance": {
+    "estimated_runtime": "5-10 minutes per video",
+    "resource_requirements": {
+      "cpu": "2 cores",
+      "memory": "4GB",
+      "storage": "10GB temporary",
+      "bandwidth": "Video size + 20%"
+    },
+    "optimization": {
+      "parallel_processing": true,
+      "caching": true,
+      "batch_size": 1
+    }
+  },
+  "validation": {
+    "required_nodes": [
+      "webhook",
+      "httpRequest",
+      "executeCommand",
+      "function",
+      "if",
+      "splitInBatches",
+      "merge",
+      "errorTrigger"
+    ],
+    "required_credentials": [
+      "dashscope",
+      "oss",
+      "webhook_auth"
+    ],
+    "test_scenarios": [
+      {
+        "name": "Happy Path",
+        "input": {
+          "youtube_url": "https://youtu.be/bJFtcwLSNxI",
+          "language": "zh-CN"
+        },
+        "expected": {
+          "status": "completed",
+          "has_quotes": true,
+          "has_screenshots": true
+        }
+      },
+      {
+        "name": "Invalid URL",
+        "input": {
+          "youtube_url": "https://invalid.com/video",
+          "language": "en"
+        },
+        "expected": {
+          "status": "failed",
+          "error": "Invalid YouTube URL"
+        }
+      },
+      {
+        "name": "Long Video",
+        "input": {
+          "youtube_url": "https://youtu.be/long-video-id",
+          "language": "zh-CN"
+        },
+        "expected": {
+          "status": "failed",
+          "error": "Video exceeds maximum length"
+        }
+      }
+    ]
+  },
+  "risks": [
+    {
+      "type": "availability",
+      "description": "YouTube可能限制下载或需要代理",
+      "mitigation": "实现代理池和重试机制",
+      "severity": "high"
+    },
+    {
+      "type": "performance",
+      "description": "大视频文件可能导致内存溢出",
+      "mitigation": "使用流式处理和临时文件清理",
+      "severity": "medium"
+    },
+    {
+      "type": "cost",
+      "description": "AI API调用成本可能较高",
+      "mitigation": "实施调用限制和成本监控",
+      "severity": "medium"
+    },
+    {
+      "type": "quality",
+      "description": "转写和金句提取质量依赖AI模型",
+      "mitigation": "提供人工审核和编辑功能",
+      "severity": "low"
+    },
+    {
+      "type": "security",
+      "description": "API密钥和OSS凭证暴露风险",
+      "mitigation": "使用n8n凭证管理系统",
+      "severity": "high"
+    }
+  ],
+  "dependencies": {
+    "external": [
+      {
+        "name": "yt-dlp",
+        "version": ">=2024.0.0",
+        "purpose": "YouTube video download"
+      },
+      {
+        "name": "ffmpeg",
+        "version": ">=4.0",
+        "purpose": "Audio extraction and screenshot"
+      }
+    ],
+    "services": [
+      {
+        "name": "Aliyun DashScope",
+        "status": "required",
+        "fallback": "OpenAI API"
+      },
+      {
+        "name": "Aliyun OSS",
+        "status": "required",
+        "fallback": "Local storage"
+      }
+    ]
+  }
+}

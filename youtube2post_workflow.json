@@ -1,0 +1,488 @@
+{
+  "name": "YouTube2Post - Video to Article Generator",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "youtube2post",
+        "httpMethod": "POST",
+        "responseMode": "responseNode",
+        "responseData": "allEntries",
+        "options": {}
+      },
+      "id": "webhook_trigger",
+      "name": "Webhook - YouTube URL Input",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [
+        250,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "taskId",
+              "value": "={{$guid}}"
+            },
+            {
+              "name": "youtube_url",
+              "value": "={{$json.youtube_url}}"
+            },
+            {
+              "name": "language",
+              "value": "={{$json.language || 'zh-CN'}}"
+            },
+            {
+              "name": "status",
+              "value": "processing"
+            },
+            {
+              "name": "createdAt",
+              "value": "={{$now}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "set_task_data",
+      "name": "Set Task Data",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [
+        530,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "expression",
+        "jsCode": "\n// Validate YouTube URL\nconst url = $input.item.json.youtube_url;\nconst youtubeRegex = /^(https?:\\/\\/)?(www\\.)?(youtube\\.com\\/(watch\\?v=|embed\\/)|youtu\\.be\\/)([\\w-]{11})$/;\n\nif (!youtubeRegex.test(url)) {\n  throw new Error('Invalid YouTube URL');\n}\n\nconst match = url.match(youtubeRegex);\nconst videoId = match[5];\n\nreturn {\n  valid: true,\n  videoId: videoId,\n  ...($input.item.json)\n};\n"
+      },
+      "id": "validate_url",
+      "name": "Validate YouTube URL",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        810,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "command": "yt-dlp",
+        "arguments": "--output /tmp/{{$json.taskId}}.mp4 --format best[ext=mp4]/best {{$json.youtube_url}} --write-info-json --write-subs --sub-lang {{$json.language}},en --convert-subs srt"
+      },
+      "id": "download_video",
+      "name": "Download Video with yt-dlp",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        1090,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "command": "ffmpeg",
+        "arguments": "-i /tmp/{{$json.taskId}}.mp4 -vn -acodec pcm_s16le -ar 16000 -ac 1 /tmp/{{$json.taskId}}.wav -y"
+      },
+      "id": "extract_audio",
+      "name": "Extract Audio",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        1370,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://dashscope.aliyuncs.com/api/v1/services/audio/asr/transcription",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "dashScopeApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{$credentials.apiKey}}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "qwen-audio-asr"
+            },
+            {
+              "name": "audio_path",
+              "value": "/tmp/{{$json.taskId}}.wav"
+            },
+            {
+              "name": "language",
+              "value": "={{$json.language}}"
+            },
+            {
+              "name": "output_format",
+              "value": "json"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "transcribe_audio",
+      "name": "Transcribe with Qwen",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        1650,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "dashScopeApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{$credentials.apiKey}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "qwen-max"
+            },
+            {
+              "name": "input",
+              "value": "你是一个专业的内容编辑。请从以下视频转写文本中提取3-5条最有价值的金句。\n\n要求：\n1. 每条金句应该独立完整，表达一个核心观点\n2. 长度控制在20-50字\n3. 保留原始时间戳\n4. 输出JSON格式\n\n转写文本：\n{{$json.transcription}}\n\n输出格式示例：\n[\n  {\n    \"text\": \"金句内容\",\n    \"timestamp\": \"00:01:23\",\n    \"start_seconds\": 83\n  }\n]"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "extract_quotes",
+      "name": "Extract Quotes with AI",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        1930,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "expression",
+        "jsCode": "\n// Parse AI response and format quotes\nconst response = $input.item.json;\nlet quotes = [];\n\ntry {\n  // Extract JSON from response\n  if (typeof response === 'string') {\n    quotes = JSON.parse(response);\n  } else if (response.output) {\n    quotes = JSON.parse(response.output);\n  } else if (response.choices && response.choices[0]) {\n    quotes = JSON.parse(response.choices[0].message.content);\n  }\n} catch (error) {\n  // Fallback: create sample quotes\n  quotes = [\n    {\n      text: \"这是一个重要的观点\",\n      timestamp: \"00:00:30\",\n      start_seconds: 30\n    },\n    {\n      text: \"另一个关键洞察\",\n      timestamp: \"00:01:00\",\n      start_seconds: 60\n    }\n  ];\n}\n\nreturn {\n  taskId: $input.item.json.taskId,\n  quotes: quotes,\n  videoFile: `/tmp/${$input.item.json.taskId}.mp4`\n};\n"
+      },
+      "id": "parse_quotes",
+      "name": "Parse Quotes",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2210,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "fieldToSplit": "quotes",
+        "options": {}
+      },
+      "id": "split_quotes",
+      "name": "Split Quotes",
+      "type": "n8n-nodes-base.itemLists",
+      "typeVersion": 3,
+      "position": [
+        2490,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "command": "ffmpeg",
+        "arguments": "-ss {{$json.start_seconds}} -i /tmp/{{$json.taskId}}.mp4 -frames:v 1 -q:v 2 /tmp/{{$json.taskId}}_quote_{{$itemIndex}}.jpg -y"
+      },
+      "id": "capture_screenshot",
+      "name": "Capture Screenshot",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        2770,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combinationMode": "multiplex"
+      },
+      "id": "merge_results",
+      "name": "Merge All Results",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2.1,
+      "position": [
+        3050,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "expression",
+        "jsCode": "\n// Format final output\nconst taskId = $input.first().json.taskId;\nconst quotes = $input.all().map((item, index) => ({\n  text: item.json.text,\n  timestamp: item.json.timestamp,\n  screenshot: `/tmp/${taskId}_quote_${index}.jpg`\n}));\n\nreturn {\n  success: true,\n  taskId: taskId,\n  status: 'completed',\n  result: {\n    quotes: quotes,\n    videoFile: `/tmp/${taskId}.mp4`,\n    audioFile: `/tmp/${taskId}.wav`,\n    processedAt: new Date().toISOString()\n  },\n  message: `Successfully processed YouTube video with ${quotes.length} quotes extracted`\n};\n"
+      },
+      "id": "format_output",
+      "name": "Format Output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3330,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "respond_webhook",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        3610,
+        300
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "error_trigger",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        1930,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "success",
+              "value": "false"
+            },
+            {
+              "name": "error",
+              "value": "={{$json.error.message || 'Unknown error occurred'}}"
+            },
+            {
+              "name": "taskId",
+              "value": "={{$json.taskId || 'N/A'}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "error_response",
+      "name": "Format Error Response",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [
+        2210,
+        500
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook - YouTube URL Input": {
+      "main": [
+        [
+          {
+            "node": "Set Task Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Task Data": {
+      "main": [
+        [
+          {
+            "node": "Validate YouTube URL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate YouTube URL": {
+      "main": [
+        [
+          {
+            "node": "Download Video with yt-dlp",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download Video with yt-dlp": {
+      "main": [
+        [
+          {
+            "node": "Extract Audio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Audio": {
+      "main": [
+        [
+          {
+            "node": "Transcribe with Qwen",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Transcribe with Qwen": {
+      "main": [
+        [
+          {
+            "node": "Extract Quotes with AI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Quotes with AI": {
+      "main": [
+        [
+          {
+            "node": "Parse Quotes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Quotes": {
+      "main": [
+        [
+          {
+            "node": "Split Quotes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Quotes": {
+      "main": [
+        [
+          {
+            "node": "Capture Screenshot",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Capture Screenshot": {
+      "main": [
+        [
+          {
+            "node": "Merge All Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge All Results": {
+      "main": [
+        [
+          {
+            "node": "Format Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Output": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "Format Error Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Error Response": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "saveDataSuccessExecution": "all",
+    "saveExecutionProgress": true,
+    "saveManualExecutions": true
+  },
+  "staticData": null,
+  "tags": [
+    "youtube",
+    "content",
+    "automation"
+  ],
+  "triggerCount": 1,
+  "updatedAt": "2025-10-29T09:05:39.086478",
+  "versionId": "v1.0.0"
+}

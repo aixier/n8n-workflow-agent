@@ -220,6 +220,63 @@ All workflows must include:
 - Use authentication nodes for external API access
 - Run security analysis with workflow_analyzer.py
 
+## Knowledge Management (MANDATORY)
+
+### Experience and Lessons Documentation
+
+**CRITICAL REQUIREMENT**: After completing ANY task, you MUST update the experience documentation files. This is not optional.
+
+**Documentation Files to Maintain**:
+- **`docs/SUCCESS_EXPERIENCES.md`** - Record successful approaches, solutions, and patterns
+- **`docs/ERROR_LESSONS.md`** - Document errors encountered, root causes, and solutions
+
+**Update Process** (MUST execute after every task):
+
+1. **Read Existing Documentation**:
+   ```bash
+   Read docs/SUCCESS_EXPERIENCES.md
+   Read docs/ERROR_LESSONS.md
+   ```
+
+2. **Update Success Experiences** (when task succeeds):
+   - UPDATE existing entries if similar experience exists
+   - Add new entries only for unique experiences
+   - Include: Date, Task Type, Solution, Key Insights, Code Snippets
+
+3. **Update Error Lessons** (when errors occur):
+   - UPDATE existing entries if similar error encountered before
+   - Add new entries only for unique errors
+   - Include: Date, Error Type, Root Cause, Solution Applied, Prevention Strategy
+
+**Documentation Format**:
+```markdown
+## [Task Category]
+
+### [Specific Task/Error] - Updated: YYYY-MM-DD
+**Context**: Brief description
+**Solution/Cause**: What worked or what caused the issue
+**Key Learning**: Important takeaway
+**Code Example**: (if applicable)
+```
+
+**Important Rules**:
+- **UPDATE, don't duplicate**: Search for existing similar entries and UPDATE them with new information
+- **Keep it organized**: Group by task categories (Workflow Creation, Testing, Deployment, etc.)
+- **Be specific**: Include actual error messages, API responses, and code snippets
+- **Track patterns**: Note if issues/solutions appear repeatedly
+- **Version tracking**: Always update the "Updated" date when modifying entries
+
+**Example Update Commands**:
+```bash
+# After successful workflow creation
+Edit docs/SUCCESS_EXPERIENCES.md  # Update or add workflow creation patterns
+
+# After encountering webhook registration error
+Edit docs/ERROR_LESSONS.md  # Update webhook troubleshooting section
+```
+
+**Enforcement**: This documentation update is MANDATORY and should be the final step of any task completion.
+
 ## Response Templates
 
 When creating workflows, structure responses as:

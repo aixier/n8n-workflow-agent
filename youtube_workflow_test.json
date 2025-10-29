@@ -1,0 +1,153 @@
+{
+  "name": "YouTube2Post Test Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "youtube-test",
+        "responseMode": "lastNode",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      },
+      "id": "webhook_trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Validate and extract YouTube video ID\nconst input = $input.item.json.body || $input.item.json;\nconst url = input.youtube_url || input.url;\n\nif (!url) {\n  return {\n    error: true,\n    message: 'YouTube URL is required',\n    timestamp: new Date().toISOString()\n  };\n}\n\n// Extract video ID from various YouTube URL formats\nconst patterns = [\n  /(?:youtube\\.com\\/watch\\?v=|youtu\\.be\\/|youtube\\.com\\/shorts\\/)([\\w-]{11})/,\n  /youtube\\.com\\/embed\\/([\\w-]{11})/,\n  /youtube\\.com\\/v\\/([\\w-]{11})/\n];\n\nlet videoId = null;\nfor (const pattern of patterns) {\n  const match = url.match(pattern);\n  if (match) {\n    videoId = match[1];\n    break;\n  }\n}\n\nif (!videoId) {\n  return {\n    error: true,\n    message: 'Invalid YouTube URL format',\n    url: url,\n    timestamp: new Date().toISOString()\n  };\n}\n\n// Return validated data\nreturn {\n  error: false,\n  videoId: videoId,\n  originalUrl: url,\n  language: input.language || 'zh-CN',\n  requestId: Math.random().toString(36).substr(2, 9),\n  timestamp: new Date().toISOString(),\n  processStep: 'validation_complete'\n};"
+      },
+      "id": "validate_url",
+      "name": "Validate URL",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.error }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "check_error",
+      "name": "Check Error",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Return error response\nconst errorData = $input.item.json;\n\nreturn {\n  success: false,\n  error: {\n    message: errorData.message,\n    url: errorData.url || 'not provided',\n    timestamp: errorData.timestamp\n  },\n  statusCode: 400\n};"
+      },
+      "id": "format_error",
+      "name": "Format Error Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [850, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Process YouTube video information\nconst data = $input.item.json;\n\n// Simulate video metadata (in real scenario, would call YouTube API)\nconst videoMetadata = {\n  videoId: data.videoId,\n  title: `Test Video - ${data.videoId}`,\n  description: 'This is a simulated video description for testing purposes.',\n  duration: Math.floor(Math.random() * 600) + 60, // Random duration between 1-11 minutes\n  views: Math.floor(Math.random() * 100000),\n  likes: Math.floor(Math.random() * 5000),\n  publishedAt: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString(),\n  channelTitle: 'Test Channel',\n  thumbnails: {\n    default: `https://img.youtube.com/vi/${data.videoId}/default.jpg`,\n    medium: `https://img.youtube.com/vi/${data.videoId}/mqdefault.jpg`,\n    high: `https://img.youtube.com/vi/${data.videoId}/hqdefault.jpg`\n  }\n};\n\n// Generate article content based on video\nconst articleContent = {\n  title: `${videoMetadata.title} - 深度解析`,\n  summary: `本文基于YouTube视频\"${videoMetadata.title}\"生成，包含视频的核心内容和要点分析。`,\n  sections: [\n    {\n      heading: '视频概述',\n      content: videoMetadata.description\n    },\n    {\n      heading: '关键要点',\n      content: [\n        '要点1: 视频内容的核心观点',\n        '要点2: 重要的技术细节',\n        '要点3: 实践应用建议'\n      ]\n    },\n    {\n      heading: '视频信息',\n      content: {\n        '视频ID': videoMetadata.videoId,\n        '发布时间': videoMetadata.publishedAt,\n        '视频时长': `${Math.floor(videoMetadata.duration / 60)}分${videoMetadata.duration % 60}秒`,\n        '观看次数': videoMetadata.views.toLocaleString(),\n        '点赞数': videoMetadata.likes.toLocaleString()\n      }\n    }\n  ],\n  metadata: videoMetadata,\n  generatedAt: new Date().toISOString(),\n  language: data.language\n};\n\nreturn {\n  success: true,\n  requestId: data.requestId,\n  videoInfo: videoMetadata,\n  article: articleContent,\n  processSteps: [\n    'url_validated',\n    'video_metadata_fetched',\n    'content_analyzed',\n    'article_generated'\n  ],\n  timestamp: new Date().toISOString()\n};"
+      },
+      "id": "process_video",
+      "name": "Process Video",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [850, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "id": "respond_webhook",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1050, 300]
+    }
+  ],
+  "connections": {
+    "webhook_trigger": {
+      "main": [
+        [
+          {
+            "node": "validate_url",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "validate_url": {
+      "main": [
+        [
+          {
+            "node": "check_error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "check_error": {
+      "main": [
+        [
+          {
+            "node": "process_video",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "format_error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "process_video": {
+      "main": [
+        [
+          {
+            "node": "respond_webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "format_error": {
+      "main": [
+        [
+          {
+            "node": "respond_webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
