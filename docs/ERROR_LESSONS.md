@@ -34,6 +34,8 @@ This document records errors encountered, their root causes, and solutions appli
 - All returned 404 despite showing as active in API
 - No executions recorded in workflow history
 - Test webhooks also failed without UI interaction
+- **YouTube Processor Test (ElwksDwOH8GAYs4x)**: Active but webhooks not registered
+- Created activation test script (activate_webhook_test.py) for guided testing
 
 **Prevention Strategy**:
 - Always verify webhook registration after API-based workflow creation
