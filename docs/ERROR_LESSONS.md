@@ -14,11 +14,12 @@ This document records errors encountered, their root causes, and solutions appli
 - Webhooks created via API may not register until manually saved in UI
 - Service restart may be required for webhook registration
 - Test webhooks (`/webhook-test/`) also require UI interaction ("Execute workflow" button)
+- **CONFIRMED**: Even when workflow shows "active: true" in API, webhooks still return 404
 
 **Solution Applied**:
 1. Open workflow in n8n UI (http://localhost:5679)
 2. Click on webhook node to verify configuration
-3. Save workflow manually (Ctrl+S)
+3. Save workflow manually (Ctrl+S) - **CRITICAL STEP**
 4. Verify workflow is activated (toggle in top-right)
 5. If still not working, restart n8n service
 
@@ -26,23 +27,42 @@ This document records errors encountered, their root causes, and solutions appli
 - Use manual workflow execution via API (limited support)
 - Create workflows through UI first, then manage via API
 - Use n8n's CLI tools if available
+- Create comprehensive activation guide (see WEBHOOK_ACTIVATION_GUIDE.md)
+
+**Test Results (2025-10-29)**:
+- Tested 3 active workflows with 9 different webhook calls
+- All returned 404 despite showing as active in API
+- No executions recorded in workflow history
+- Test webhooks also failed without UI interaction
 
 **Prevention Strategy**:
 - Always verify webhook registration after API-based workflow creation
 - Use test webhook URLs during development
 - Include webhook verification in deployment scripts
 - Consider using n8n's internal execution API for testing
+- Document webhook activation requirements prominently
 
 **Code Example**:
 ```python
-# Verify webhook is accessible
-test_url = f"{base_url}/webhook/{webhook_path}"
-response = requests.post(test_url, json=test_data, timeout=5)
-if response.status_code == 404:
-    print("Webhook not registered - manual intervention required")
-    # Try test webhook as fallback
-    test_webhook_url = f"{base_url}/webhook-test/{workflow_id}/{webhook_path}"
-    print(f"Note: Test webhook requires UI interaction: {test_webhook_url}")
+# Comprehensive webhook testing
+def test_webhook_activation(workflow_id, webhook_path):
+    # Test production webhook
+    prod_url = f"{base_url}/webhook/{webhook_path}"
+    response = requests.post(prod_url, json=test_data, timeout=5)
+
+    if response.status_code == 404:
+        print("❌ Production webhook not registered")
+
+        # Try test webhook
+        test_url = f"{base_url}/webhook-test/{workflow_id}/{webhook_path}"
+        test_response = requests.post(test_url, json=test_data, timeout=5)
+
+        if test_response.status_code == 404:
+            print("❌ Test webhook also not active")
+            print("📝 Required: Manual save in n8n UI")
+            return False
+
+    return response.status_code == 200
 ```
 
 ---
