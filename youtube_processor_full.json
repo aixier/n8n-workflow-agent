@@ -1,0 +1,234 @@
+{
+  "name": "YouTube Processor - Full Version",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## YouTube Video Processor\n\n功能：\n1. 验证YouTube URL\n2. 提取视频ID\n3. 获取视频元数据（模拟）\n4. 生成文章内容\n5. 返回处理结果",
+        "height": 150,
+        "width": 400,
+        "color": "#FF6B6B"
+      },
+      "id": "note_doc",
+      "name": "Documentation",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [250, 50]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "youtube-processor-full",
+        "responseMode": "lastNode",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
+          }
+        }
+      },
+      "id": "webhook_trigger",
+      "name": "接收YouTube URL",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [250, 250]
+    },
+    {
+      "parameters": {
+        "jsCode": "// 验证URL并提取YouTube视频ID\nconst input = $input.item.json.body || $input.item.json;\nconst url = input.youtube_url || input.url || '';\n\nif (!url) {\n  return {\n    success: false,\n    error: {\n      code: 'MISSING_URL',\n      message: 'YouTube URL is required',\n      timestamp: new Date().toISOString()\n    }\n  };\n}\n\n// 支持多种YouTube URL格式\nconst patterns = [\n  /(?:youtube\\.com\\/watch\\?v=|youtu\\.be\\/|youtube\\.com\\/shorts\\/)([\\w-]{11})/,\n  /youtube\\.com\\/embed\\/([\\w-]{11})/,\n  /youtube\\.com\\/v\\/([\\w-]{11})/\n];\n\nlet videoId = null;\nlet urlType = 'unknown';\n\nfor (const pattern of patterns) {\n  const match = url.match(pattern);\n  if (match) {\n    videoId = match[1];\n    if (pattern.source.includes('watch\\?v')) urlType = 'standard';\n    else if (pattern.source.includes('youtu\\.be')) urlType = 'short';\n    else if (pattern.source.includes('shorts')) urlType = 'shorts';\n    else if (pattern.source.includes('embed')) urlType = 'embed';\n    break;\n  }\n}\n\nif (!videoId) {\n  return {\n    success: false,\n    error: {\n      code: 'INVALID_URL',\n      message: 'Invalid YouTube URL format',\n      supportedFormats: [\n        'https://www.youtube.com/watch?v=VIDEO_ID',\n        'https://youtu.be/VIDEO_ID',\n        'https://youtube.com/shorts/VIDEO_ID',\n        'https://www.youtube.com/embed/VIDEO_ID'\n      ],\n      timestamp: new Date().toISOString()\n    }\n  };\n}\n\n// 验证videoId格式（11个字符的字母数字组合）\nif (!/^[\\w-]{11}$/.test(videoId)) {\n  return {\n    success: false,\n    error: {\n      code: 'INVALID_VIDEO_ID',\n      message: 'Invalid YouTube video ID',\n      videoId: videoId,\n      timestamp: new Date().toISOString()\n    }\n  };\n}\n\nreturn {\n  success: true,\n  videoId: videoId,\n  originalUrl: url,\n  urlType: urlType,\n  language: input.language || 'zh-CN',\n  requestId: Math.random().toString(36).substr(2, 9),\n  processStep: 'url_validated',\n  timestamp: new Date().toISOString()\n};"
+      },
+      "id": "validate_url",
+      "name": "验证URL并提取ID",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 250]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.success }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "check_validation",
+      "name": "检查验证结果",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [650, 250]
+    },
+    {
+      "parameters": {
+        "jsCode": "// 模拟获取YouTube视频元数据\n// 在实际应用中，这里会调用YouTube Data API v3\nconst data = $input.item.json;\n\n// 模拟视频元数据（基于videoId生成确定性数据）\nconst videoId = data.videoId;\nconst hash = videoId.split('').reduce((a, b) => ((a << 5) - a + b.charCodeAt(0)) & 0xffffffff, 0);\n\n// 使用videoID生成伪随机的视频信息\nconst mockVideos = {\n  '_ss8tOxWAuo': {\n    title: '2024年AI技术发展总结',\n    description: '本视频全面回顾了2024年人工智能领域的重要突破，包括大模型的发展、AI在各行业的应用、以及对未来的展望。',\n    channelTitle: '科技前沿',\n    duration: '15:30',\n    viewCount: Math.floor((hash % 1000000) + 50000),\n    likeCount: Math.floor((hash % 50000) + 1000),\n    publishDate: '2024-01-15T10:00:00Z',\n    tags: ['AI', '人工智能', '科技', '2024总结', '技术趋势']\n  }\n};\n\n// 获取或生成视频信息\nlet videoInfo = mockVideos[videoId] || {\n  title: `视频标题 - ${videoId}`,\n  description: `这是视频ID为${videoId}的描述内容。视频讲述了关于技术和创新的重要话题。`,\n  channelTitle: '科技频道',\n  duration: `${Math.floor(Math.abs(hash % 30) + 1)}:${String(Math.abs(hash % 60)).padStart(2, '0')}`,\n  viewCount: Math.floor(Math.abs(hash % 1000000) + 10000),\n  likeCount: Math.floor(Math.abs(hash % 50000) + 500),\n  publishDate: new Date(Date.now() - Math.abs(hash % 365) * 24 * 60 * 60 * 1000).toISOString(),\n  tags: ['技术', '创新', '视频', '内容']\n};\n\n// 构建完整的视频元数据\nconst videoMetadata = {\n  videoId: videoId,\n  title: videoInfo.title,\n  description: videoInfo.description,\n  channelTitle: videoInfo.channelTitle,\n  duration: videoInfo.duration,\n  durationSeconds: parseDuration(videoInfo.duration),\n  viewCount: videoInfo.viewCount,\n  likeCount: videoInfo.likeCount,\n  publishDate: videoInfo.publishDate,\n  publishDateFormatted: formatDate(videoInfo.publishDate),\n  tags: videoInfo.tags,\n  thumbnails: {\n    default: `https://img.youtube.com/vi/${videoId}/default.jpg`,\n    medium: `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`,\n    high: `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`,\n    maxres: `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`\n  },\n  urls: {\n    watch: `https://www.youtube.com/watch?v=${videoId}`,\n    embed: `https://www.youtube.com/embed/${videoId}`,\n    share: `https://youtu.be/${videoId}`\n  }\n};\n\n// 辅助函数\nfunction parseDuration(duration) {\n  const parts = duration.split(':');\n  return parseInt(parts[0]) * 60 + parseInt(parts[1]);\n}\n\nfunction formatDate(dateStr) {\n  const date = new Date(dateStr);\n  return date.toLocaleDateString('zh-CN', { \n    year: 'numeric',\n    month: 'long',\n    day: 'numeric'\n  });\n}\n\nreturn {\n  ...data,\n  videoMetadata: videoMetadata,\n  processStep: 'metadata_fetched',\n  processTime: Date.now() - new Date(data.timestamp).getTime()\n};"
+      },
+      "id": "fetch_metadata",
+      "name": "获取视频元数据",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [850, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "// 生成基于视频的文章内容\nconst data = $input.item.json;\nconst metadata = data.videoMetadata;\nconst language = data.language || 'zh-CN';\n\n// 生成文章内容\nconst article = {\n  title: metadata.title + ' - 深度解析',\n  summary: `基于YouTube视频《${metadata.title}》生成的内容解析。本文从视频的核心观点出发，深入探讨相关主题，为读者提供详细的知识总结和见解。`,\n  \n  sections: [\n    {\n      heading: '视频概述',\n      content: `本文基于${metadata.channelTitle}频道发布的视频《${metadata.title}》。该视频时长${metadata.duration}，已获得${metadata.viewCount.toLocaleString()}次观看，发布于${metadata.publishDateFormatted}。视频主要内容涵盖了${metadata.tags.slice(0, 3).join('、')}等关键主题。`,\n      type: 'introduction'\n    },\n    \n    {\n      heading: '核心内容解析',\n      content: metadata.description,\n      type: 'main_content',\n      bulletPoints: [\n        '要点一：视频强调了技术创新的重要性',\n        '要点二：提供了实用的解决方案和案例',\n        '要点三：展望了未来的发展趋势',\n        '要点四：分享了宝贵的经验和见解'\n      ]\n    },\n    \n    {\n      heading: '关键数据与统计',\n      content: {\n        videoId: metadata.videoId,\n        duration: metadata.duration,\n        views: metadata.viewCount.toLocaleString() + '次观看',\n        likes: metadata.likeCount.toLocaleString() + '个点赞',\n        publishDate: metadata.publishDateFormatted,\n        channel: metadata.channelTitle,\n        tags: metadata.tags.join(', ')\n      },\n      type: 'statistics'\n    },\n    \n    {\n      heading: '延伸思考',\n      content: `从视频内容可以看出，${metadata.tags[0]}领域正在快速发展。对于关注这一领域的观众来说，理解视频中的核心观点对于把握行业动态至关重要。建议观众结合自身需求，深入思考如何将这些知识应用到实际场景中。`,\n      type: 'reflection'\n    },\n    \n    {\n      heading: '相关资源',\n      content: {\n        videoLink: metadata.urls.watch,\n        embedLink: metadata.urls.embed,\n        thumbnails: metadata.thumbnails,\n        suggestedTopics: metadata.tags.map(tag => `关于${tag}的更多资源`)\n      },\n      type: 'resources'\n    }\n  ],\n  \n  metadata: {\n    generatedAt: new Date().toISOString(),\n    language: language,\n    wordCount: Math.floor(Math.random() * 500 + 800),\n    estimatedReadTime: Math.floor(Math.random() * 3 + 3) + '分钟',\n    source: 'YouTube Video',\n    sourceUrl: metadata.urls.watch,\n    videoId: metadata.videoId\n  }\n};\n\n// 添加社交媒体摘要\nconst socialSummary = {\n  twitter: `${article.title.substring(0, 100)}... #AI #技术分享`,\n  linkedin: `深入解析${metadata.title}，探讨${metadata.tags[0]}领域的发展趋势。`,\n  weibo: `【视频解析】${article.title} 基于YouTube视频的深度内容解析，${metadata.viewCount}次观看的热门内容！`\n};\n\nreturn {\n  ...data,\n  article: article,\n  socialSummary: socialSummary,\n  processStep: 'content_generated',\n  totalProcessTime: Date.now() - new Date(data.timestamp).getTime()\n};"
+      },
+      "id": "generate_content",
+      "name": "生成文章内容",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1050, 200]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "status",
+              "value": "completed"
+            },
+            {
+              "name": "message",
+              "value": "YouTube视频处理完成"
+            },
+            {
+              "name": "success",
+              "value": true
+            }
+          ],
+          "number": [
+            {
+              "name": "finalProcessTime",
+              "value": "={{ $json.totalProcessTime }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "add_final_metadata",
+      "name": "添加最终元数据",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [1250, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json, null, 2) }}",
+        "options": {}
+      },
+      "id": "return_success",
+      "name": "返回成功结果",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1450, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "// 格式化错误响应\nconst error = $input.item.json;\n\nreturn {\n  success: false,\n  error: error.error || {\n    code: 'UNKNOWN_ERROR',\n    message: '处理过程中发生未知错误'\n  },\n  requestId: error.requestId || 'unknown',\n  timestamp: new Date().toISOString(),\n  processStep: 'error_occurred'\n};"
+      },
+      "id": "format_error",
+      "name": "格式化错误",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [850, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "id": "return_error",
+      "name": "返回错误",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1050, 400]
+    }
+  ],
+  "connections": {
+    "webhook_trigger": {
+      "main": [[
+        {
+          "node": "validate_url",
+          "type": "main",
+          "index": 0
+        }
+      ]]
+    },
+    "validate_url": {
+      "main": [[
+        {
+          "node": "check_validation",
+          "type": "main",
+          "index": 0
+        }
+      ]]
+    },
+    "check_validation": {
+      "main": [
+        [
+          {
+            "node": "fetch_metadata",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "format_error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "fetch_metadata": {
+      "main": [[
+        {
+          "node": "generate_content",
+          "type": "main",
+          "index": 0
+        }
+      ]]
+    },
+    "generate_content": {
+      "main": [[
+        {
+          "node": "add_final_metadata",
+          "type": "main",
+          "index": 0
+        }
+      ]]
+    },
+    "add_final_metadata": {
+      "main": [[
+        {
+          "node": "return_success",
+          "type": "main",
+          "index": 0
+        }
+      ]]
+    },
+    "format_error": {
+      "main": [[
+        {
+          "node": "return_error",
+          "type": "main",
+          "index": 0
+        }
+      ]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
