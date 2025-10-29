@@ -51,6 +51,30 @@ patterns = [
 
 ---
 
+## Webhook Activation
+
+### Production Webhook Activation via UI Save - Updated: 2025-10-29
+**Context**: Activating production webhook endpoints for API-created workflows
+**Solution**: Manual save in n8n UI successfully registers webhooks
+**Key Learning**:
+- Workflow must be saved in UI even if showing "saved" status
+- Production webhooks become immediately available after UI save
+- Test webhooks still require "Execute Workflow" button click
+**Success Metrics**:
+- YouTube Processor webhook activated successfully
+- All 3 test cases (standard URL, shorts, youtu.be) working
+- 100% success rate after UI save
+**Verification**:
+```python
+# Production webhook now working
+webhook_url = "http://localhost:5679/webhook/youtube-processor-20251029111823"
+response = requests.post(webhook_url, json=test_data)
+# Returns 200 with execution data
+```
+**Important**: UI shows "saved" in gray but still requires explicit save action
+
+---
+
 ## API Integration
 
 ### n8n API Authentication - Updated: 2025-10-29

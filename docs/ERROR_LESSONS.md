@@ -19,9 +19,14 @@ This document records errors encountered, their root causes, and solutions appli
 **Solution Applied**:
 1. Open workflow in n8n UI (http://localhost:5679)
 2. Click on webhook node to verify configuration
-3. Save workflow manually (Ctrl+S) - **CRITICAL STEP**
+3. Save workflow manually (Ctrl+S) - **CRITICAL STEP** (even if UI shows "saved" in gray)
 4. Verify workflow is activated (toggle in top-right)
 5. If still not working, restart n8n service
+
+**CONFIRMED SOLUTION (2025-10-29)**:
+- Even when UI shows "saved" (gray text), manual save is still required
+- After explicit save in UI, production webhooks immediately work
+- Test successful: YouTube Processor webhook activated and processing requests
 
 **Alternative Solutions**:
 - Use manual workflow execution via API (limited support)
